@@ -1,36 +1,33 @@
-﻿namespace Service;
+﻿namespace API.Controllers;
 
-using LinqToDB;
-using Infrastructure.Data;
-using Infrastructure.Entities;
+using Microsoft.AspNetCore.Mvc;
+using Service;
 using Service.DTOs;
-using LinqToDB.Async;
 
-public class ProductService(AppDataConnection db)
+[ApiController]
+[Route("api/[controller]")]
+public class ProductsController(ProductService productService) : ControllerBase
 {
-    private readonly AppDataConnection _db = db;
+    private readonly ProductService _productService = productService;
 
-    public async Task<List<Product>> GetAllProductsAsync()
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        return await _db.Products.AsAsyncEnumerable().ToListAsync();
+        var products = await _productService.GetAllProductsAsync();
+        return Ok(products);
     }
 
-    public async Task<Product> CreateProductAsync(CreateProductRequest request)
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateProductRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
+        try
         {
-            throw new ArgumentException("Product name cannot be empty.");
+            var product = await _productService.CreateProductAsync(request);
+            return CreatedAtAction(nameof(GetAll), new { id = product.Id }, product);
         }
-
-        var product = new Product
+        catch (ArgumentException ex)
         {
-            Name = request.Name,
-            Price = request.Price
-        };
-
-        var id = await _db.InsertWithInt32IdentityAsync(product);
-        product.Id = id;
-
-        return product;
+            return BadRequest(ex.Message);
+        }
     }
 }
